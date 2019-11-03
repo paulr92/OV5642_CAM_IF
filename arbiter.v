@@ -25,6 +25,7 @@ reg [22:0] wr_ptr_ff, wr_ptr_nxt;
 reg [22:0] rd_ptr_ff, rd_ptr_nxt;
 
 reg [19:0] init_count_ff, init_count_nxt;
+reg [19:0] vga_count_ff, vga_count_nxt;
 reg [9:0] count_ff, count_nxt;
 reg [9:0] prio_count_ff, prio_count_nxt;
 
@@ -40,7 +41,7 @@ begin
 		init_count_nxt = init_count_ff;
 		Go_nxt = Go_ff;
 		Wr_nxt = Wr_ff;
-		vga_rst_nxt = vga_rst_ff;
+		// vga_rst_nxt = vga_rst_ff;
 		brst_Addr_nxt = brst_Addr_ff;
 		wr_ptr_nxt = wr_ptr_ff;
 		rd_ptr_nxt = rd_ptr_ff;
@@ -49,6 +50,9 @@ begin
 		wr_loc_nxt = wr_loc_ff;
 		rd_loc_nxt = rd_loc_ff;
 		rd_no_nxt = rd_no_ff;
+		vga_count_nxt = vga_count_ff;
+		
+		vga_rst_nxt = (vga_count_ff > 9)? 0 : vga_rst_ff;
 		
 		case(arb_state_ff)
 		
@@ -79,6 +83,7 @@ begin
 							if (~init_done_ff)
 							init_count_nxt = init_count_ff + 20'd1;
 							arb_state_nxt = s_arb_vga_req_go;	//----->Go to vga req
+							vga_count_nxt = vga_count_ff + 1;
 							count_nxt = 1;
 							//prio_count_nxt = 0;
 							end
@@ -88,6 +93,7 @@ begin
 								if (prio_count_ff < 3) //<<--- cu 3,6 ,12 merge cel mai bine
 									begin
 									arb_state_nxt = s_arb_vga_req_go;	//----->Go to vga req
+									vga_count_nxt = vga_count_ff + 1;
 									//arb_state_nxt = s_arb_cam_req_go;	//----->Go to cam req
 									count_nxt = 1;
 									prio_count_nxt = prio_count_ff + 10'd1;
@@ -106,7 +112,7 @@ begin
 							end
 						if (init_count_ff >= brst_no-1)	//start vga controller
 							begin
-							vga_rst_nxt = 0;
+							// vga_rst_nxt = 0;
 							init_done_nxt = 1;
 							end
 						end
@@ -269,6 +275,7 @@ begin
 		rd_no_ff <= 2'd0;
 		cam_req_ff <= 1'b0;
 		vga_req_ff <= 1'b0;
+		vga_count_ff <= 0;
 		end
 	else 
 		begin
@@ -288,6 +295,7 @@ begin
 		rd_no_ff  <= rd_no_nxt ;
 		cam_req_ff <= cam_req;
 		vga_req_ff <= vga_req;
+		vga_count_ff <= vga_count_nxt;
 		end
 end
 

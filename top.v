@@ -88,11 +88,11 @@ SR_latch SR2(
 always @(posedge cam_pclk or posedge rst)begin
 	if (rst)
 		frame_cnt <= 0;
-	else if ((~cam_vsync_i&vsync_ff)&&(frame_cnt<4))
+	else if ((~cam_vsync_i&vsync_ff)&&(frame_cnt<10))
 		frame_cnt <= frame_cnt + 1;
 end
 
-assign vsync_ok = (frame_cnt == 4) ? 1 : 0;
+assign vsync_ok = (frame_cnt == 10) ? 1 : 0;
 
 always @(posedge clk25 or posedge rst)begin
 	if (rst)
