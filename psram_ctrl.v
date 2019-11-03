@@ -36,6 +36,8 @@ module psram_ctrl(
 
 `include "psram_param.inc"	
 
+reg DQ_sel;
+
 wire Done;
 wire [15:0] DQ_in;
 wire clk_80_gt, clk_n_80_gt;
@@ -360,12 +362,14 @@ begin
 					brst_ren_nxt = 1'b1;
 					
 					brst_count_nxt = brst_count_ff + 15'd1;
-					if (brst_count_ff == 15'd7 + 2*Burst_length + 15'd12)
-					brst_state_nxt = s_brst_wr_nRen;
+					if (brst_count_ff == 15'd7 + 2*Burst_length + 15'd12) begin
+						brst_state_nxt = s_brst_wr_nRen;
+						brst_ren_nxt = 1'b0;
+					end
 				end
 				
 				s_brst_wr_nRen : begin
-					brst_ren_nxt = 1'b0;
+					// brst_ren_nxt = 1'b0;
 					
 					brst_count_nxt = brst_count_ff + 15'd1;
 					if (brst_count_ff == 15'd7 + 2*Burst_length + 15'd2 + 15'd11)//12 <------
@@ -546,7 +550,7 @@ begin
 		brst_mem_clk_en_ff <= 1'b0;
 		brst_ren_ff <= 1'b0;
 		brst_wen_ff <= 1'b0;
-		brst_done_ff <= 1'b1;		
+		brst_done_ff <= 1'b1;
 		end
 	else 
 		begin
@@ -568,6 +572,20 @@ begin
 		end
 end
 
+always @(posedge clk160_i or posedge rst)
+begin
+	if (rst)
+		begin
+		DQ_sel <= 1'b0;
+		end
+	else begin
+		 if (~brst_ren_ff & brst_ren_nxt)
+			DQ_sel <= 1'b1;
+		 else if (~brst_ren_ff & ~brst_ren_nxt)
+			DQ_sel <= 1'b0;
+	end
+end
+
 assign brst_ren = brst_ren_ff;
 assign brst_wen = brst_wen_ff;
 assign brst_dout = DQ;
@@ -575,7 +593,8 @@ assign brst_Done = brst_done_ff;
 
 //Memory signals
 assign Addr =(cfgDone) ? (brst_Addr_ff):(Addr_ff);
-assign DQ = (cfgDone) ? (brst_ren ? brst_din : 16'bz) : (DQ_wr_ff ? DQ_ff : 16'bz) ;
+// assign DQ = (cfgDone) ? (brst_ren ? brst_din : 16'bz) : (DQ_wr_ff ? DQ_ff : 16'bz) ;
+assign DQ = (cfgDone) ? (DQ_sel ? brst_din : 16'bz) : (DQ_wr_ff ? DQ_ff : 16'bz) ;
 assign DQ_in = (DQ_rd_ff) ? DQ : 16'd0;	//nu era necesar dar il las asa. Pt burst nu mai trebuie facut la fel
 assign nCE = (cfgDone) ? (brst_nCE_ff) : (nCE_ff);
 assign nADV = (cfgDone) ? brst_nADV_ff : nADV_ff;

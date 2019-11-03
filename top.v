@@ -17,7 +17,7 @@ module top(
 	output cam_sioc_o,		//I2C clock line for camera configuration
 	inout  cam_siod_io,		//I2C data line for camera configuration
 	output cam_cfg_done,		//Camera configuration done flag
-	//output cam_pwdn_o,		//Camera power down
+	output cam_pwdn_o,		//Camera power down
 	//-----------//
 	input cam_pclk,			//Camera pixel clock input
 	output cam_xclk,			//Camera global clock output
@@ -56,7 +56,9 @@ module top(
 	 wire nclk80;	//camera buffer clock(READ)
 	 //wire clk100;	//memory configuration state machine clock
 	 wire clk160;	//burst access state machine clock
-
+		
+	 assign cam_pwdn_o = 1'b0;
+		
 	 wire [7:0] vga_data;
 	 assign vga_red = blank ? 3'b000 : vga_data[7:5];
 	 assign vga_green = blank ? 3'b000 :  vga_data[7:5];
@@ -67,6 +69,10 @@ module top(
 	 
 	 reg brst_Go_ff;
 	 reg Y, href_ff;
+	 wire vsync_ok, vga_vs_ok;
+	 reg  vsync_ff, vga_vs_ff;
+	 reg [3:0] frame_cnt;
+	 reg [3:0] frame_cnt2;
 SR_latch SR1(
 .R(latch_r),
 .S(cam_err),
@@ -79,8 +85,31 @@ SR_latch SR2(
 .Q(vga_err_l)
 );
 
-always @(posedge cam_pclk)
+always @(posedge cam_pclk or posedge rst)begin
+	if (rst)
+		frame_cnt <= 0;
+	else if ((~cam_vsync_i&vsync_ff)&&(frame_cnt<4))
+		frame_cnt <= frame_cnt + 1;
+end
+
+assign vsync_ok = (frame_cnt == 4) ? 1 : 0;
+
+always @(posedge clk25 or posedge rst)begin
+	if (rst)
+		frame_cnt2 <= 0;
+	else if ((vga_vs&~vga_vs_ff)&&(frame_cnt2<4))
+		frame_cnt2 <= frame_cnt2 + 1;
+end
+
+assign vga_vs_ok = (frame_cnt2 == 4) ? 1 : 0;
+
+always @(posedge clk25)begin
+		vga_vs_ff <= vga_vs;
+end
+always @(posedge cam_pclk)begin
 		href_ff <= cam_href_i;
+		vsync_ff <= cam_vsync_i;
+	end
 		
 always @(posedge cam_pclk or posedge rst) begin
 	if (rst)
@@ -97,7 +126,7 @@ Camera_buffer Camera_buffer (
   .wr_clk(cam_pclk),
   .rd_clk(nclk80),
   .din(cam_din), 
-  .wr_en(cam_cfg_done&cam_href_i&~Y), 
+  .wr_en(cam_cfg_done&cam_href_i&~Y&vsync_ok), 
   .rd_en(brst_ren),
   .dout(cam_buff_dout), 
   .overflow(cam_err), 
@@ -143,7 +172,7 @@ VGA_buffer VGA_buffer (
   .rd_clk(clk25), 
   .din(brst_dout[7:0]), 
   .wr_en(brst_wen), 
-  .rd_en(~blank), 
+  .rd_en(~blank&vga_vs_ok), 
   .dout(vga_data), 
   .underflow(vga_err),
   .prog_empty(vga_req)
@@ -177,13 +206,24 @@ always @(posedge clk80)
 		 .sioc_o(cam_sioc_o), 
 		 .siod_io(cam_siod_io)
  );
-  
+  /*
  vga_ctrl vga_ctrl(
 	.px_clk(clk25),
 	.rst(vga_rst),	
 	.hs(vga_hs),
 	.vs(vga_vs),
 	.blank(blank)
+);
+*/
+
+dispaly_timing_controller vga_ctrl(
+.clk(clk25),
+.rst(vga_rst),
+.hs(vga_hs),
+.vs(vga_vs),
+.active_video_area(blank),
+.x(),
+.y()
 );
 		
 clock_manager_core clocking_unit

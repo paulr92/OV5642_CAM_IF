@@ -50,10 +50,13 @@ module top_tb;
 	wire cam_err_l;
 	wire vga_err_l;
 	wire [7:0] cam_din;
-	
+	wire wr_done;
 	wire [2:0] r,g;
 	wire [1:0] b;
 	// Bidirs
+	
+	//Sim vars
+	integer frame_cnt = 0;
 	
 	//wire cam_siod_io;
 	
@@ -119,13 +122,14 @@ module top_tb;
 	
 	image_write im_wr(
 	  .HCLK(uut.clk25),
-	  .HRESETn(rst),
+	  .HRESETn(~rst),
 	  .hsync(~uut.blank),
 	  .DATA_IN({r,g,b}),
-	  .Write_Done()
+	  .Write_Done(wr_done)
 	);
 	
-	initial begin
+	initial begin : main_thread
+	 
 		// Initialize Inputs
 		clk = 0;
 		rst = 1;
@@ -134,9 +138,16 @@ module top_tb;
 		rst = 0;  
 		#50;
 		force uut.CameraSetup.done = 1'b1;
+		#1000;
+		force uut.vsync_ok = 1'b1;
 		// Add stimulus here
-		#58_000_000;//58ms
-		$finish;
+		//#58_000_000;//58ms
+		while (1) begin
+			@(negedge wr_done)
+				$stop;
+			$display("Printed frame number %d", frame_cnt);
+			frame_cnt = frame_cnt + 1;
+		end
 
 	end
    

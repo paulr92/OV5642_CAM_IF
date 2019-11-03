@@ -65,7 +65,11 @@ always@(posedge HCLK, negedge HRESETn) begin
     end else begin
         if(hsync) begin
             // if(m == WIDTH/2-1) begin
-            if(m == WIDTH-1) begin
+            if(l == HEIGHT-1)begin
+                l <= 0;
+                m <= 0;
+				end
+            else if(m == WIDTH-1) begin
                 m <= 0;
                 l <= l + 1; // count to obtain row index of the out_BMP temporary memory to save image data
             end else begin
